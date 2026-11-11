@@ -1,0 +1,81 @@
+# Blueprint de Render: n8n + Postgres para el bot de WhatsApp de la veterinaria
+# Subir este archivo a la raíz de un repo en GitHub y crear un "Blueprint" en Render.
+
+services:
+  - type: web
+    name: n8n-veterinaria
+    runtime: image
+    image:
+      url: docker.io/n8nio/n8n:latest   # imagen oficial en Docker Hub; recomendable fijar una versión, ej. :1.x.x
+    plan: starter            # plan pagado: el gratuito se duerme y rompe webhooks y recordatorios
+    region: oregon
+    healthCheckPath: /healthz
+    envVars:
+      # --- Puerto ---
+      - key: N8N_PORT
+        value: "10000"
+      - key: PORT
+        value: "10000"
+      - key: N8N_PROTOCOL
+        value: https
+
+      # --- URL pública (completar después del primer deploy) ---
+      # Ej: https://n8n-veterinaria.onrender.com/
+      - key: WEBHOOK_URL
+        sync: false
+      - key: N8N_EDITOR_BASE_URL
+        sync: false
+
+      # --- Zona horaria (afecta los recordatorios programados) ---
+      - key: GENERIC_TIMEZONE
+        value: America/Santiago
+      - key: TZ
+        value: America/Santiago
+
+      # --- Seguridad ---
+      - key: N8N_ENCRYPTION_KEY      # cifra las credenciales guardadas; no cambiarla nunca
+        generateValue: true
+      - key: N8N_SECURE_COOKIE
+        value: "true"
+      - key: N8N_DIAGNOSTICS_ENABLED
+        value: "false"
+      - key: N8N_RUNNERS_ENABLED
+        value: "true"
+
+      # --- Base de datos de n8n (Postgres de Render) ---
+      - key: DB_TYPE
+        value: postgresdb
+      - key: DB_POSTGRESDB_HOST
+        fromDatabase:
+          name: n8n-db
+          property: host
+      - key: DB_POSTGRESDB_PORT
+        fromDatabase:
+          name: n8n-db
+          property: port
+      - key: DB_POSTGRESDB_DATABASE
+        fromDatabase:
+          name: n8n-db
+          property: database
+      - key: DB_POSTGRESDB_USER
+        fromDatabase:
+          name: n8n-db
+          property: user
+      - key: DB_POSTGRESDB_PASSWORD
+        fromDatabase:
+          name: n8n-db
+          property: password
+
+      # --- Limpieza de ejecuciones antiguas (evita que crezca la base) ---
+      - key: EXECUTIONS_DATA_PRUNE
+        value: "true"
+      - key: EXECUTIONS_DATA_MAX_AGE
+        value: "168"   # horas (7 días)
+
+databases:
+  - name: n8n-db
+    databaseName: n8n
+    user: n8n
+    plan: basic-256mb
+    region: oregon
+    ipAllowList: []    # solo acceso interno desde Render
